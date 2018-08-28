@@ -3,7 +3,7 @@ import numpy as np
 import os
 import glob
 import torch
-
+import random
 
 class ZhijiangDatasets(torch.utils.data.Dataset):
     def __init__(self, mode, root, label_to_att, name_to_label, word_vec, label_word, transform = None):
@@ -80,3 +80,35 @@ class ZhijiangDatasets2(torch.utils.data.Dataset):
         return len(self.imgs)
 
 
+
+class Densenet_Datasets(torch.utils.data.Dataset):
+    def __init__(self, pic_dir, name_label, mode, transformer=None):
+        self.transformer = transformer
+        all_dir_filenames = glob.glob(pic_dir)
+        self.root = os.path.dirname(pic_dir)
+        self.all_filenames = [os.path.basename(x) for x in all_dir_filenames]
+        self.all_labels = [name_label[x] for x in self.all_filenames]
+
+        num = int(len(self.all_filenames) * 0.8)
+        self.train_filenames = random.sample(self.all_filenames, num)
+        self.train_labels = [name_label[x] for x in self.train_filenames]
+        # print(len(list(self.train_filenames)))
+        self.val_filenames = list(set(self.all_filenames) - set(list(self.train_filenames)))
+        self.val_labels = [name_label[x] for x in self.val_filenames]
+
+        if mode == 'train':
+            self.all_filenames = self.train_filenames
+            self.all_labels = self.train_labels
+        else:
+            self.all_filenames = self.val_filenames
+            self.all_labels = self.val_labels
+
+
+    def __getitem__(self, index):
+        img = Image.open(os.path.join(self.root, self.all_filenames[index])).convert('RGB')
+        if self.transformer:
+            img = self.transformer(img)
+        return np.array(img), int(self.all_labels[index].replace('ZJL', ''))
+
+    def __len__(self):
+        return len(self.all_filenames)

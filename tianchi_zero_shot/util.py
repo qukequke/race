@@ -62,6 +62,15 @@ def plot_1_list(list_, title, save_dir):
     plt.close()
 
 
+def plot_2_list(list_1, list_2, title, save_dir):
+    plt.figure()
+    plt.plot(list_1)
+    plt.plot(list_2)
+    plt.title(title)
+    plt.legend(['train_acc', 'val_acc'])
+    plt.savefig(save_dir)
+    plt.close()
+
 def find_queshi_value():
     queshi = sorted(list(map(lambda x:int(x[3:]), all_label_list))) #训练集中包括190类(中间有缺的)
     print('缺失值为', end='')
@@ -96,6 +105,7 @@ def get_pre_value(y_pre, arr_mat, label_names):
     # print(arr_mat[:5, :])
 
     loss_arr = np.sum((y_pre - arr_mat)**2, 1)
+    # print('loss_arr shape ' + str(loss_arr.shape))
     # print(loss_arr)
     index = np.argmin(loss_arr)
     # print(loss_arr[index])
@@ -104,7 +114,14 @@ def get_pre_value(y_pre, arr_mat, label_names):
     # for i ,j in enumerate(label_names):
         # print(i, j)
 #     print(index)
-    return label_names[index]
+
+    ##change to probablity
+    pro = my_softmax(-loss_arr)
+    # index1 = np.argmax(pro)
+    # print(index)
+    # print(index1)
+    return label_names[index], pro
+    # return label_names[index]
 
 def get_word_em_mat(dir_):
     # word_mat = np.genfromtxt(dir_, dtype='float32')[:, 1:]
@@ -119,5 +136,44 @@ def get_word_em_mat(dir_):
     # print(len(em_list[0]))
     return word_list, np.array(em_list)
 
+
+def my_softmax(mat):
+    # print(mat)
+    # a = np.tile(np.sum(mat, 0), [mat.shape[0], 1])
+    mat = mat.reshape(mat.shape[0], 1)
+    ret = np.exp(mat) / np.sum(np.exp(mat), 0)
+    ret = ret.reshape(ret.shape[0], )
+    # cc = np.exp(mat) / np.sum(np.exp(mat), 0)
+    # print(cc)
+    return ret
+
+
+def accuracy(dataloader):
+    print('cacl acc')
+    correction = 0.0
+    all_num = 0.0
+    # for i, (x, y) in enumerate(dataloader):
+    for (x, y) in tqdm(dataloader):
+        x, y = Variable(x), Variable(y)
+        if torch.cuda.is_available():
+            x, y = x.cuda(), y.cuda()
+        y_pre = model(x)
+        y_pre = F.softmax(y_pre, 1)
+        y_pre = torch.argmax(y_pre, 1)
+        y_pre = y_pre.float()
+        y = y.float()
+
+        correction += (y_pre == y).sum().float()
+        all_num += y.shape[0]
+    acc = correction / all_num
+    return acc
+
+if __name__ == '__main__':
+
+
+    a = np.array([[1,2,3], [4,1,2], [4,4,9]]) 
+    a = -a
+    ret = my_softmax(a)
+    print(ret)
 
 

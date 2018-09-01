@@ -82,33 +82,44 @@ class ZhijiangDatasets2(torch.utils.data.Dataset):
 
 
 class Densenet_Datasets(torch.utils.data.Dataset):
-    def __init__(self, pic_dir, name_label, mode, transformer=None):
+    def __init__(self, pic_dir, name_label, mode, raw_new_label, transformer=None):
+        self.raw_new_label = raw_new_label
         self.transformer = transformer
         all_dir_filenames = glob.glob(pic_dir)
         self.root = os.path.dirname(pic_dir)
         self.all_filenames = [os.path.basename(x) for x in all_dir_filenames]
-        self.all_labels = [name_label[x] for x in self.all_filenames]
-
-        num = int(len(self.all_filenames) * 0.8)
-        self.train_filenames = random.sample(self.all_filenames, num)
-        self.train_labels = [name_label[x] for x in self.train_filenames]
-        # print(len(list(self.train_filenames)))
-        self.val_filenames = list(set(self.all_filenames) - set(list(self.train_filenames)))
-        self.val_labels = [name_label[x] for x in self.val_filenames]
+        file_all_nums = len(self.all_filenames)
+        if mode == 'train' or mode == 'val' or mode == 'all':
+            num = int(len(self.all_filenames) * 0.8)
+            self.all_labels = [name_label[x] for x in self.all_filenames]
+            self.all_labels = [raw_new_label[x] for x in self.all_labels]
+            self.train_filenames = random.sample(self.all_filenames, num)
+            self.train_labels = [name_label[x] for x in self.train_filenames]
+            self.train_labels = [raw_new_label[x] for x in self.train_labels]
+            # print(len(list(self.train_filenames)))
+            self.val_filenames = list(set(self.all_filenames) - set(list(self.train_filenames)))
+            self.val_labels = [name_label[x] for x in self.val_filenames]
+            self.val_labels = [raw_new_label[x] for x in self.val_labels]
+        elif mode == 'test':
+            self.all_labels = [i for i, x in enumerate(self.all_filenames)]
 
         if mode == 'train':
             self.all_filenames = self.train_filenames
             self.all_labels = self.train_labels
-        else:
+        elif mode == 'val':
             self.all_filenames = self.val_filenames
             self.all_labels = self.val_labels
+        # finally:
+        print('used_file_nums is ' + str(len(self.all_filenames)) + '/' + str(file_all_nums))
+
 
 
     def __getitem__(self, index):
         img = Image.open(os.path.join(self.root, self.all_filenames[index])).convert('RGB')
         if self.transformer:
             img = self.transformer(img)
-        return np.array(img), int(self.all_labels[index].replace('ZJL', ''))
+        # print(self.all_filenames[index])
+        return np.array(img), self.all_labels[index]
 
     def __len__(self):
         return len(self.all_filenames)

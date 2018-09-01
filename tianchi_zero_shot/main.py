@@ -27,7 +27,7 @@ root_train = 'data/DatasetA_train_20180813/train/*.jpeg'
 batch_size = 10
 
 #load zidian name:文件名,  label:ZJL,  att:(30, )
-all_label_list, name_to_label, label_to_att, word_vec, label_word, word_label = get_dict(mode=mode)
+all_label_list, name_to_label, label_to_att, word_vec, label_word, word_label, raw_new_label, new_raw_label = get_dict(mode=mode)
 transformer = transforms.Compose([transforms.Resize([224, 224]),
                                  transforms.ToTensor(),
                                  transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])])
@@ -43,30 +43,25 @@ if mode == 'train':
                                 word_vec=word_vec,
                                 label_word=label_word)
     data_loader = torch.utils.data.DataLoader(datasets, batch_size=batch_size)
-
     test_data_loader = torch.utils.data.DataLoader(datasets, batch_size=batch_size)
-    # for i in range(100):
-    #     x_test, y_test = next(iter(test_data_loader))
-    #     print(x_test.shape)
-    #     print(y_test.shape)
-    #     break
-        # print(y_test.shape)
-    # x, y = next(iter(data_loader))
 
-    if os.listdir('models'):
-        model = torch.load('models/my_model2.pkl')
-        print('continue training')
-    else:
-        model = vgg16(pretrained=True)
-        model.classifier = torch.nn.Sequential(
-                                    torch.nn.Linear(7*7*512, 4096),
-                                    torch.nn.ReLU(),
-                                    torch.nn.Dropout(0.5),
-                                    torch.nn.Linear(4096, 4096),
-                                    torch.nn.ReLU(),
-                                    torch.nn.Dropout(0.5),
-                                    torch.nn.Linear(4096, 300))
-                                    # torch.nn.Sigmoid())
+    # if os.listdir('models'):
+    #     model = torch.load('models/.pkl')
+    #     print('continue training')
+    # else:
+    #     model = vgg16(pretrained=True)
+    #     model.classifier = torch.nn.Sequential(
+    #                                 torch.nn.Linear(7*7*512, 4096),
+    #                                 torch.nn.ReLU(),
+    #                                 torch.nn.Dropout(0.5),
+    #                                 torch.nn.Linear(4096, 4096),
+    #                                 torch.nn.ReLU(),
+    #                                 torch.nn.Dropout(0.5),
+    #                                 torch.nn.Linear(4096, 300))
+    #                                 # torch.nn.Sigmoid())
+    model = restore_model('models/densenet.pkl')
+    model.classifier = torch.nn.Sequential(torch.nn.Linear(1024, 300))
+
     if torch.cuda.is_available():
         model = model.cuda()
 
@@ -93,10 +88,10 @@ if mode == 'train':
             optimizer.step()
 
         loss_list.append(loss_epoch/i)
-        plot_1_list(loss_list, 'epoch_loss', 'epoch_loss3.png')
+        plot_1_list(loss_list, 'epoch_loss', 'epoch_loss_mse.png')
         print('epoch loss ' + str((loss_epoch / i)))
         print('epoch: ' + str(epoch))
-        torch.save(model, 'models/my_model2.pkl')
+        torch.save(model, 'models/densenet_mse.pkl')
 
     
 elif mode == 'test_yuyi':
@@ -139,14 +134,15 @@ elif mode == 'test_yuyi':
 
 
 elif mode == 'test_embedding':
-    batch_size = 30
+    batch_size = 20
     print('test_embedding')
     arr_mat, label_names = get_arr_mat(label_to_att)
     model1_dir = 'models/my_model.pkl'
     model2_dir = 'models/my_model2.pkl'
     # model1 = torch.load(model1_dir)
     # model1.eval()
-    model2 = torch.load(model2_dir)
+    # model2 = torch.load(model2_dir)
+    model2 = restore_model('models/densenet_mse.pkl')
     model2.eval()
 
     test_datasets = ZhijiangDatasets(root=root_test,
@@ -177,17 +173,6 @@ elif mode == 'test_embedding':
     # print(submit_df.tail())
     # for i in range(len(all_filenames) // batch_size):
 
-    # for filename in tqdm(all_filenames):
-    # for num, filename in enumerate(tqdm(all_filenames)):
-        # base_name = os.path.basename(filename)
-        # f.write(base_name)
-        # f.write('\t')
-        # x = cv2.imread(filename)
-        # x = cv2.resize(x, (224, 224))
-        # x = transforms.Normalize(x)
-        # x = torch.FloatTensor(x)
-        # x = x.permute(2, 1, 0)
-        # x = x.view(1, x.shape[0], x.shape[1], x.shape[2])
 
 
         # x, y = next(iterator)
@@ -211,15 +196,17 @@ elif mode == 'test_embedding':
             pro_list.append(pro1)
         min_label_list_all.extend(min_label_list)
     # print(len(min_label_list_all))
-    for k, pro_array in enumerate(pro_list):
-        print(k)
-        pro_df.iloc[k, :] = pro_list[k]
-    pro_df.to_csv('pro.csv')
+
+    # for k, pro_array in enumerate(pro_list):
+    #     print(k)
+    #     pro_df.iloc[k, :] = pro_list[k]
+
+    # submit_df.loc[batch_size*i:batch_size*i + batch_size, 'index'] = min_label_list 
+    # pro_df.to_csv('pro_densenet.csv')
     submit_df.loc[:, 'index'] = min_label_list_all
-    submit_df.to_csv('submit.csv')
+    submit_df.to_csv('submit_densenet.csv')
     # print(submit_df.tail)
     #         # print(pro1.shape)
-    #     submit_df.loc[batch_size*i:batch_size*i + batch_size, 'index'] = min_label 
 
 
         # min_label2, pro2 = get_pre_value(y_pre2.cpu().data.numpy()[0, :], arr_mat, label_names)

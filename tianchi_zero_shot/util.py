@@ -1,6 +1,12 @@
 from collections import OrderedDict
 import numpy as np
 import matplotlib.pyplot as plt
+import torch
+import torch.nn.functional as F
+from tqdm import tqdm
+from torch.autograd import Variable
+import pandas as pd
+import os
 
 
 def get_dict(mode):
@@ -9,11 +15,25 @@ def get_dict(mode):
     word_vec = {}
     label_word = {}
     word_label = {}
+    raw_new_label = {}
+    new_raw_label = {}
     label_to_att = OrderedDict()
     dir_1 = 'data/DatasetA_train_20180813/train.txt'
     dir_2 = 'data/DatasetA_train_20180813/attributes_per_class.txt'
     dir_3 = 'data/DatasetA_train_20180813/class_wordembeddings.txt'
     dir_4 = 'data/DatasetA_train_20180813/label_list.txt'
+    root = 'data/DatasetA_train_20180813/train.txt'
+
+    with open(root) as f:
+        raw_label_list = []
+        for line in f:
+            raw_label = line.split()[1]
+            raw_label_list.append(raw_label)
+    raw_label_list = list(set(raw_label_list))
+    raw_label_list = (sorted(raw_label_list, key=lambda x:int(x.replace('ZJL', ''))))
+    for i, x in enumerate(raw_label_list):
+        raw_new_label[x] = i
+        new_raw_label[i] = x
 
     with open(dir_4) as f:
         for line in f:
@@ -42,7 +62,7 @@ def get_dict(mode):
     #         print(vec)
             vec = np.array(list(map(lambda x: float(x), vec)))
             label_to_att[word] = vec
-    return all_label_list, name_to_label, label_to_att, word_vec, label_word, word_label
+    return all_label_list, name_to_label, label_to_att, word_vec, label_word, word_label, raw_new_label, new_raw_label
 
 
 def get_arr_mat(label_to_att):
@@ -147,33 +167,51 @@ def my_softmax(mat):
     # print(cc)
     return ret
 
+def restore_model(model_name):
+    print('restore  ' + str(model_name))
+    model = torch.load(model_name)
+    return model
 
-def accuracy(dataloader):
-    print('cacl acc')
-    correction = 0.0
-    all_num = 0.0
-    # for i, (x, y) in enumerate(dataloader):
-    for (x, y) in tqdm(dataloader):
+
+def save_features(model, dataset, dataloader, save_name, batch_size):
+    feature_mat = np.zeros((len(dataset), 1024))
+    print(feature_mat.shape)
+
+    # for i, (x, y) in enumerate(tqdm(all_file_dataloader)):
+    for i, (x, y) in enumerate(tqdm(dataloader)):
+        # print(x.shape)
+        # print(y)
         x, y = Variable(x), Variable(y)
         if torch.cuda.is_available():
             x, y = x.cuda(), y.cuda()
-        y_pre = model(x)
-        y_pre = F.softmax(y_pre, 1)
-        y_pre = torch.argmax(y_pre, 1)
-        y_pre = y_pre.float()
-        y = y.float()
+        features = model(x)
+        features = F.avg_pool2d(features, 7, 1).squeeze()
+        features = features.cpu().data.numpy()
+        # print(features.shape)
+        try:
+            feature_mat[i*batch_size:i*batch_size + batch_size, :] = features
+        except Exception:
+            feature_mat[i*batch_size:, :] = features
+    sio.savemat(save_name,{'features':feature_mat})
 
-        correction += (y_pre == y).sum().float()
-        all_num += y.shape[0]
-    acc = correction / all_num
-    return acc
+
+def csv_txt(dir_, save_dir):
+    df = pd.read_csv(dir_)
+    filenames = list(df['filename'])
+    index = list(df['index'])
+    # print([x for x in index if int(x.replace('ZJL', '')) > 200])
+
+    list_ = list(map(lambda x,y:x+'\t'+y + '\n', filenames, index))
+    with open(save_dir, 'w') as f:
+        f.writelines(list_)
 
 if __name__ == '__main__':
+    csv_txt('submit_densenet.csv', 'submit_densenet.txt')
 
 
-    a = np.array([[1,2,3], [4,1,2], [4,4,9]]) 
-    a = -a
-    ret = my_softmax(a)
-    print(ret)
+    # a = np.array([[1,2,3], [4,1,2], [4,4,9]]) 
+    # a = -a
+    # ret = my_softmax(a)
+    # print(ret)
 
 

@@ -11,7 +11,7 @@ from sklearn import metrics
 import sys
 
 
-system = sys.platform #判断系统的，我在我自己电脑cpu调一调再去课题室gpu上跑 你可以忽略
+system = sys.platform #判断系统的
 if system == 'win32':
     os.chdir('input')
 mode = 'train'  # train用来训练, test生成csv提交结果

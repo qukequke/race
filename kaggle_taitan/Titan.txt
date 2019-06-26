@@ -1,0 +1,10 @@
+Titan
+
+下载完数据就是1个csv文件，用pandas读进来，先有info查看一下有多少空数据里面内容包括PassengerId，Survived，Pclass(1,2,3等舱)， name， Sex， Age，家人信息，Cabin客舱（缺失太多）
+
+对age(缺177test中缺86) embarked(2, 0) Cabin(687, 327)fare(0, 1)进行缺失值补充
+用已有的数值型数据建造随机森林对age进行填充，包括fare, parch, Sibsp, Pclass。Cabin缺失太多直接丢弃了，embarked
+把 名字中的前缀提出来作为一个特征Title
+把一个人乘车的弄出来Isalone属性
+
+看age 和survived 密度图，给age分类，分成了3类 以18,32为界 把车费进行了归一化，使用lr模型，svm模型，模型调优，融合
